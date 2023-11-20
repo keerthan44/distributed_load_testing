@@ -136,6 +136,7 @@ def TSUNAMI(testData):
             'report_id': "report_" + str(uuid.uuid4()),
             'time': runtime_ms,
             'test_id': testData['test_id'],
+            'node_id': node_id
         }
         
         producer.send(config['topics']['metrics'], context)
@@ -176,6 +177,7 @@ def AVALANCHE(testData):
             'report_id': "report_" + str(uuid.uuid4()),
             'time': runtime_ms,
             'test_id': testData['test_id'],
+            'node_id': node_id
         }
         
         producer.send(config['topics']['metrics'], context)

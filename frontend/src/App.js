@@ -52,10 +52,10 @@ export default function App() {
 
   const interval = () => setInterval(() => {
     axios.post("/metrics/" + testConfig['test_id']).then((response) => {
-      console.log(response.data['metrics'])
-      if (response.data['metrics']) 
+      console.log(response.data)
+      if (response.data['metrics'])
         setMetrics(response.data['metrics'])
-    }).catch((error) => {})
+    }).catch((error) => { })
   }, 1000)
   React.useEffect(() => {
     // socketIO.on("connect", (data) => console.log(data))
@@ -85,7 +85,9 @@ export default function App() {
   const handleTriggerClick = () => {
     axios.post("/trigger/" + testConfig['test_id']).then(response => {
       setMetrics({})
+      setTimeout(() => {
       setGeneratedInterval(interval());
+      }, 1000)
       // console.log(response.data);
       // setTestConfig(response.data);
       // socketIO.on("data", (data) => console.log(data));
@@ -225,7 +227,7 @@ export default function App() {
                   variant="subtitle1"
                   align="center"
                 >
-                  Mean:&nbsp; 
+                  Mean:&nbsp;
                   {metrics['mean'] || "No data avalable"}
                 </Typography>
                 <Typography
@@ -233,7 +235,7 @@ export default function App() {
                   variant="subtitle1"
                   align="center"
                 >
-                  Median:&nbsp; 
+                  Median:&nbsp;
                   {metrics['median'] || "No data avalable"}
                 </Typography>
                 <Typography
@@ -249,14 +251,14 @@ export default function App() {
                   variant="subtitle1"
                   align="center"
                 >
-                  Maximum: 
+                  Maximum:
                   {metrics['max'] || "No data available"}
                 </Typography>
               </ul>
             </CardContent>
             <CardActions sx={{ display: 'flex', alignContent: 'center', justifyContent: 'center' }}>
-              <Button onClick={() => {clearInterval(generatedInterval)}}>Stop</Button>
-              <Button onClick={() => { setGeneratedInterval(interval())}}>Start</Button>
+              <Button onClick={() => { clearInterval(generatedInterval) }}>Stop</Button>
+              <Button onClick={() => { setGeneratedInterval(interval()) }}>Start</Button>
             </CardActions>
           </Card>
         </Grid>

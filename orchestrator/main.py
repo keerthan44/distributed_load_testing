@@ -49,10 +49,11 @@ def metrics_handler(msg):
     #     registeredNodes[1].release()
     #     return 
     # registeredNodes[1].release()
-
     reportData = {
         'report_id': data['report_id'],
-        'time': data['time']
+        'time': data['time'],
+        "node_id": data['node_id'],
+
     }
     global metricsStore
     metricsStore[1].acquire() 
@@ -67,8 +68,12 @@ def metrics_handler(msg):
             "time_list": [data['time']],
             "timestamps": [datetime.now()]
         }
+    if data['node_id'] in metricsStore[0][data['test_id']]:
+        metricsStore[0][data['test_id']][data["node_id"]] += 1
+    else: 
+        metricsStore[0][data['test_id']][data["node_id"]] = 1
     if metricsStore[0]:    
-        print(metricsStore[0][data['test_id']])
+        print(metricsStore[0].keys())
     else: 
         print("Empty")
     metricsStore[1].release() 
@@ -101,18 +106,26 @@ def calculateMertics(time_list):
 #     emit("data", metricsStore[0][])
 #     sleep(60)
 
+def calculateTimeTaken(timestamps):
+    print(timestamps)
+    return (timestamps[-1] - timestamps[-2]).total_seconds()
+
 @app.route("/metrics/<string:test_id>", methods=['POST'])
 def metrics(test_id):
     print("Metrics")
+    print(test_id)
     global metricsStore
     metricsStore[1].acquire()
     if test_id in metricsStore[0]:
+        returning = {k: v for k, v in metricsStore[0][test_id].items() if k != ['metrics', 'reports', 'timestamps']}
         context = {
             'reports': metricsStore[0][test_id]['reports'], 
             "metrics": calculateMertics(metricsStore[0][test_id]['time_list']),
             # "time_taken": calculateTimeTaken(metricsStore[0][current_test_id]['timestamps'])
         }
+        context.update(returning)
         metricsStore[1].release()
+        print(metricsStore[0].keys())
         print("Release")
         return jsonify(context) 
     else:
