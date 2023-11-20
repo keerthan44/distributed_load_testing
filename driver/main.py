@@ -112,7 +112,7 @@ def trigger_handler(msg):
             TSUNAMI(testData)
         else:
             print("AVALANCE")
-            AVALANCE(testData)
+            AVALANCHE(testData)
         print(f"""
             {Fore.RED}[{config['topics']['trigger']}]: {Style.RESET_ALL} Trigger for {data['test_id']} recieved
             """)
@@ -157,7 +157,7 @@ def TSUNAMI(testData):
             sleep(testData['test_message_delay'] / 1000)
             threadList.append(Thread(target=run))
 
-def AVALANCE(testData):
+def AVALANCHE(testData):
     def run():
         start_time = datetime.now()
         try:
@@ -191,25 +191,10 @@ def AVALANCE(testData):
             break
         count += 1
     if status:
-        def done():
-            print("Done")
         threadList = [Thread(target=run)]
         for i in range(testData['message_count_per_driver']):
             threadList[i].start()
             threadList.append(Thread(target=run))
-        threadCount = VariableListener(activeCount, done)
-
-
-
-        print(f"""
-            {Fore.RED}[AVALANCE]: {Style.RESET_ALL} Target Server Up 
-            """)
-        
-    else: 
-        print(f"""
-            {Fore.RED}[AVALANCE]: {Style.RESET_ALL} Target Server Down 
-            """)
-            
 
 def register(port):
     data = {

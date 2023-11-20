@@ -41,20 +41,51 @@ producer = KafkaProducer(bootstrap_servers=config['bootstrap_server'],
 current_test_id = None
 metricsStore = [{}, Lock()]
 
-@socketio.on('connect')
-def on_connect():
-    emit("data", "Sucess", broadcast=True)
+@bus.handle(config['topics']['metrics'])
+def metrics_handler(msg):
+    data = msg.value
+    # registeredNodes[1].acquire()
+    # if data['node_id'] not in registeredNodes[0]:
+    #     registeredNodes[1].release()
+    #     return 
+    # registeredNodes[1].release()
 
-@socketio.on('stream_data')
-def on_stream():
-    # if current_test_id is not None:
-        data = {
-            'reports': metricsStore[0][current_test_id]['reports'], 
-            "metrics": calculateMertics(metricsStore[0][current_test_id]['time_list']),
-            # "time_taken": calculateTimeTaken(metricsStore[0][current_test_id]['timestamps'])
+    reportData = {
+        'report_id': data['report_id'],
+        'time': data['time']
+    }
+    global metricsStore
+    metricsStore[1].acquire() 
+    if data['test_id'] in metricsStore[0]:
+        exisitng_metrics = metricsStore[0][data['test_id']]
+        exisitng_metrics['reports'].append(reportData),
+        bisect.insort(exisitng_metrics['time_list'], data['time']),
+        exisitng_metrics['timestamps'].append(datetime.now())
+    else:
+        metricsStore[0][data['test_id']] = {
+            "reports": [reportData],
+            "time_list": [data['time']],
+            "timestamps": [datetime.now()]
         }
-        emit("stream_data", "Sucess", broadcast=True)
-        sleep(60)
+    if metricsStore[0]:    
+        print(metricsStore[0][data['test_id']])
+    else: 
+        print("Empty")
+    metricsStore[1].release() 
+# @socketio.on('connect')
+# def on_connect():
+#     emit("data", "Sucess", broadcast=True)
+
+# @socketio.on('stream_data')
+# def on_stream():
+#     # if current_test_id is not None:
+#         data = {
+#             'reports': metricsStore[0][current_test_id]['reports'], 
+#             "metrics": calculateMertics(metricsStore[0][current_test_id]['time_list']),
+#             # "time_taken": calculateTimeTaken(metricsStore[0][current_test_id]['timestamps'])
+#         }
+#         emit("stream_data", "Sucess", broadcast=True)
+#         sleep(60)
 
 def calculateMertics(time_list):
     return {
@@ -72,9 +103,9 @@ def calculateMertics(time_list):
 
 @app.route("/metrics/<string:test_id>", methods=['POST'])
 def metrics(test_id):
-    print(test_id)
+    print("Metrics")
+    global metricsStore
     metricsStore[1].acquire()
-    print(metricsStore)
     if test_id in metricsStore[0]:
         context = {
             'reports': metricsStore[0][test_id]['reports'], 
@@ -82,9 +113,11 @@ def metrics(test_id):
             # "time_taken": calculateTimeTaken(metricsStore[0][current_test_id]['timestamps'])
         }
         metricsStore[1].release()
+        print("Release")
         return jsonify(context) 
     else:
         metricsStore[1].release()
+        print("Release")
         return jsonify({'metrics': ''})
 
 @app.route("/avalance/", methods=['POST'])
@@ -118,7 +151,9 @@ def tsunami(count=config['default_driver_count'], delay=0):
 
 @app.route("/metricsStore", methods= ['POST'])
 def metricsStoreVal():
+    global metricsStore
     print(metricsStore[0])
+
 @app.route("/trigger/", methods=['POST'])
 @app.route("/trigger/<string:test_id>", methods=['POST'])
 def trigger(test_id):
@@ -129,7 +164,6 @@ def trigger(test_id):
         }
         producer.send(config['topics']['trigger'], context)
         producer.flush()
-        current_test_id = test_id
         return jsonify(context) 
     else:
         return "No test_id", 400
@@ -162,42 +196,15 @@ def heartbeat_handler(msg):
         })
     
     registeredNodes[1].release() 
-    print(f"""
-          {Fore.RED}[{config['topics']['heartbeat']}]: {Style.RESET_ALL} Heartbeat Recieved {data['node_id']}
-          """)
+    # print(f"""
+    #       {Fore.RED}[{config['topics']['heartbeat']}]: {Style.RESET_ALL} Heartbeat Recieved {data['node_id']}
+    #     s """)
 
 
-@bus.handle(config['topics']['metrics'])
-def metrics_handler(msg):
-    data = msg.value
-    # registeredNodes[1].acquire()
-    # if data['node_id'] not in registeredNodes[0]:
-    #     registeredNodes[1].release()
-    #     return 
-    # registeredNodes[1].release()
-
-    reportData = {
-        'report_id': data['report_id'],
-        'time': data['time']
-    }
-    metricsStore[1].acquire() 
-    if data['test_id'] in metricsStore[0]:
-        exisitng_metrics = metricsStore[0][data['test_id']]
-        exisitng_metrics['reports'].append(reportData),
-        bisect.insort(exisitng_metrics['time_list'], data['time']),
-        exisitng_metrics['timestamps'].append(datetime.now())
-    else:
-        metricsStore[0][data['test_id']] = {
-            "reports": [reportData],
-            "time_list": [data['time']],
-            "timestamps": [datetime.now()]
-        }
-    metricsStore[1].release() 
-    print(metricsStore)
-    print(f"""
-        {Fore.RED}[{config['topics']['metrics']}]: {Style.RESET_ALL} Metrics Recieved\n
-        \t{json.dumps(metricsStore[0][data['test_id']]['time_list'], indent=2)}
-    """)
+    # print(f"""
+    #     {Fore.RED}[{config['topics']['metrics']}]: {Style.RESET_ALL} Metrics Recieved\n
+    #     \t{json.dumps(metricsStore[0][data['test_id']]['time_list'], indent=2)}
+    # """)
 
 def listen_kill_server():
     signal.signal(signal.SIGTERM, bus.interrupted_process)
@@ -246,6 +253,6 @@ if __name__ == '__main__':
     thread = Thread(target=aliveChecker)
     try:
         thread.start()
-        socketio.run(app, debug=True,  host='0.0.0.0', port=port)
+        app.run(debug=True,  host='0.0.0.0', port=port, threaded=True)
     except:
         thread.join()
